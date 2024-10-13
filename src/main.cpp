@@ -1,62 +1,77 @@
-#include "SPIFFS.h"
-#include "FS.h"
+#include "Arduino.h"
+#include "SettingsManager.h"
 
-#define SETTINGS_PATH "/settings.txt"
+settings_t currentSettings;
 
-bool ReadFile(String file_path);
-bool WriteFile(String file_path);
+SettingsManager settings; 
+
+void DefaultSettings(settings_t *settings);
+void PrintSettings(settings_t settings); 
 
 void setup() 
 {
   Serial.begin(115200);
 
-  if (!SPIFFS.begin(true)) 
+  if (!settings.begin()) 
   {
     Serial.println("Failed to mount SPIFFS file system");
     return;
   }
-  
-  ReadFile(SETTINGS_PATH);
-  WriteFile(SETTINGS_PATH);
-}
 
+  if(!settings.Load(&currentSettings))
+  {
+    Serial.println("File not found! Using default values...");
+    DefaultSettings(&currentSettings);
+    settings.Save(currentSettings);
+  }
+
+  PrintSettings(currentSettings);
+
+  currentSettings.exampleBool = false;
+  currentSettings.exampleFloat = 2.0f;
+  currentSettings.exampleInt = 10;
+
+  strcpy(currentSettings.names[0], "Marcelo");
+
+  PrintSettings(currentSettings);
+
+  settings.Save(currentSettings);
+
+  settings.ListFiles("/");  // List all files for Debug
+
+  if(settings.Delete())
+    Serial.println("Settings deleted");
+}
 
 void loop() 
 {
   
 }
-bool ReadFile(String file_path)
-{
-  File file = SPIFFS.open(file_path);
-  
-  if (!file) 
-  {
-    Serial.println("Failed to open file");
-    return false;
-  }
 
-  while(file.available())
-  {
-    Serial.write(file.read());
-  }
-  return true;
+void DefaultSettings(settings_t *settings) 
+{
+    settings->exampleBool = true;
+    settings->exampleFloat = 3.14f;
+    settings->exampleInt = 42;
+
+    strcpy(settings->names[0], "Name1");
+    strcpy(settings->names[1], "Name2");
+    strcpy(settings->names[2], "Name3");
 }
-bool WriteFile(String file_path)
+
+void PrintSettings(settings_t settings)
 {
-  File file = SPIFFS.open(file_path, "w");
+  Serial.print("exampleBool: ");
+  Serial.println(settings.exampleBool);
+  Serial.print("exampleFloat: ");
+  Serial.println(settings.exampleFloat);
+  Serial.print("exampleInt: ");
+  Serial.println(settings.exampleInt);
 
-  int example = 123;
-
-  if (!file) 
+  for(uint8_t name = 0; name < MAX_NAMES; name++)
   {
-    Serial.println("Failed to open file to write");
-    return false;
+    Serial.print((String)"Name " + name + " : ");
+    Serial.println(settings.names[name]);
   }
-  
-  file.println((String)"enable=" + example);
-  
-  file.close();
-
-  Serial.println("Data written to file successfully");
-  return true;
+  Serial.println(" ");
 }
